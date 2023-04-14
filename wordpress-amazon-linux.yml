@@ -1,209 +1,6 @@
-AWSTemplateFormatVersion: "2010-09-09"
-Description: 'Creacion de EC2 Wordpress mas RDS Amazon Aurora-MySQL Cluster'
-# Metadata
-Metadata:
-  # Se puede definir su propia agrupacion y ordenacion de parametros para que
-  # los usuarios puedan especificar de manera eficiente los valores de los parametros.
-  AWS::CloudFormation::Interface:
-    ParameterGroups:
-      - Label:
-          default: "Parametros de la VPC"
-        Parameters:
-          - VpcIdParameter
-      - Label:
-          default: 'Configuracion Amazon RDS (Amazon Aurora/MySQL) Cluster Redundante'
-        Parameters:
-          - DBClusterIdentifierName
-          - DBEngineVersion
-          - DBInstanceClass
-          - DBSubnets
-          - DBPermitLocation
-          - DBName
-          - DBSecretName
-          - DBMasterUsername
-          - DBPreferredBackupWindow
-          - DBBackupRetentionPeriod
-          - DBPreferredMaintenanceWindow
-          - DBAutoMinorVersionUpgrade
-          - DBDeletionProtection
-    ParameterLabels:
-      # ParameterLable VPC
-      VpcIdParameter:
-        default: 'Debe de seleccionar una VPC para Amazon Aurora-Mysql Cluster'
-      # ParameterLabels RDS
-      DBClusterIdentifierName:
-        default: 'Debe de ingresar un nombre para el Amazon Aurora-Mysql Cluster'
-      DBEngineVersion:
-        default: 'Escoger el Engine y Version de Amazon Aurora-Mysql'
-      DBInstanceClass:
-        default: 'Tipo de instancia para el Cluster Amazon Aurora-MySQL'
-      DBSubnets:
-        default: 'Debe de seleccionar las Subnets que utilizara el Cluster Amazon Aurora-MySQL'
-      DBPermitLocation:
-        default: 'Ingrese CIDR para permitir acceso al Cluster de Aurora-Mysql'
-      DBName:
-        default: 'Ingrese el nombre de la base de datos a crear'
-      DBSecretName:
-        default: 'Ingrese el nombre del Secret'
-      DBMasterUsername:
-        default: 'Nombre del usuario con privilegios de administrador en el Cluster de Aurora-Mysql'
-      DBPreferredBackupWindow:
-        default: 'Ingrese el intervalo de tiempo diario en UTC durante el cual desea crear los backups de manera automaticas'
-      DBBackupRetentionPeriod:
-        default: 'Periodo de retencion para el backup de la base de datos'
-      DBPreferredMaintenanceWindow:
-        default: 'El rango de tiempo semanal (en UTC) durante el cual se puede realizar el mantenimiento del sistema.'
-      DBAutoMinorVersionUpgrade:
-        default: 'Actualizacion automatica para las nuevas Minor Versions de Amazon Aurora-MySQL'
-      DBDeletionProtection:
-        default: 'Indicar si se habilita la proteccion contra eliminacion del Amazon Aurora-MySQL Cluster'
-#### Aurora-Parameter ######
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Deploys an EC2 with 
 Parameters:
-  # Definimos VPC a usar para la configuracion del ambiente
-  VpcIdParameter:
-    Description: Escoger sobre que VPC a trabajar
-    Type: 'AWS::EC2::VPC::Id'
-  DBSubnets:
-    Type: 'List<AWS::EC2::Subnet::Id>'
-    Description: 'Seleccione las Subnets a utilizar el Cluster Aurora-MySQL'
-  # Parametros Base de Datos
-  DBClusterIdentifierName:
-    Type: String
-    MinLength: 1
-    MaxLength: 60
-    Default: 'wordpressmysqlcluster'
-    AllowedPattern: ^(?!-)(?!.*--)(?!.*-$)[a-z][a-z0-9-]*$
-    Description: |
-      - El nombre debe ser unico en todos los clusteres de base de datos que tiene en su cuenta de AWS en la region de AWS actual. //
-      - Debe contener como minimo 1 caracter y un maximo de 60 caracteres. //
-      - Los caracteres permitidos son: letras minusculas, numeros y guiones. //
-      - El primer caracter debe ser una letra minuscula. //
-      - No debe contener dos guiones consecutivos.
-      - No debe de terminar con un guion.
-    ConstraintDescription: |-
-      - Debe contener como minimo 1 caracter y un maximo de 60 caracteres. //
-      - Los caracteres permitidos son: letras minusculas, numeros y guiones. //
-      - El primer caracter debe ser una letra minuscula. //
-      - No debe contener dos guiones consecutivos.
-      - No debe de terminar con un guion.
-  DBEngineVersion:
-    # aws rds describe-db-engine-versions --engine aurora-mysql --query 'DBEngineVersions[?contains(SupportedEngineModes,`provisioned`)].EngineVersion'
-    Type: String
-    AllowedValues: ['5.7.mysql-aurora.2.10.2', '8.0.mysql-aurora.3.02.0']
-    Default: '8.0.mysql-aurora.3.02.0'
-    Description: 'Engine y Version de Amazon Aurora-Mysql'
-  DBInstanceClass:
-    Type: String
-    # https://docs.aws.amazon.com/es_es/AmazonRDS/latest/AuroraUserGuide/Concepts.DBInstanceClass.html#Concepts.DBInstanceClass.SupportAurora
-    AllowedValues: [ 'db.t3.medium', 'db.t3.large',
-                     'db.t4g.medium', 'db.t4g.large',
-                     'db.r5.large', 'db.r5.xlarge', 'db.r5.2xlarge', 'db.r5.4xlarge', 'db.r5.8xlarge', 'db.r5.12xlarge', 'db.r5.16xlarge', 'db.r5.24xlarge',
-                     'db.r6g.large', 'db.r6g.xlarge', 'db.r6g.2xlarge', 'db.r6g.4xlarge', 'db.r6g.8xlarge', 'db.r6g.12xlarge', 'db.r6g.16xlarge']
-    Default: 'db.t3.medium'
-    Description: |
-      El nombre de la clase de capacidad de computo y memoria de Amazon RDS
-      (Aurora-MySQL) instancia de base de datos.
-    ConstraintDescription: Debe seleccionar un tipo de instancia de base de datos valido.
-  DBPermitLocation:
-    Type: String
-    MinLength: 9
-    MaxLength: 18
-    AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
-    Default: '0.0.0.0/0'
-    Description: |
-      El rango de direcciones IP que se pueden usar para conectar al Cluster de Aurora-MySQL
-    ConstraintDescription: Debe ser un rango CIDR de IP valido con el formato x.x.x.x/x.
-  DBName:
-    Type: String
-    Default: 'main'
-    MinLength: 4
-    MaxLength: 64
-    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
-    Description: |
-      - Nombre de la base de datos a crear. //
-      - Debe contener como minimo 4 caracter y un maximo de 64 caracteres. //
-      - Solo se permiten caracteres alfanumericos. //
-      - Debe de comenzar con una letra.
-    ConstraintDescription: |
-      - Debe contener como minimo 4 caracter y un maximo de 32 caracteres. //
-      - Solo se permiten caracteres alfanumericos. //
-      - Debe de comenzar con una letra.
-  DBSecretName:
-    Type: String
-    Default: 'aurora-db-secret'
-    MinLength: 4
-    MaxLength: 32
-    Description: |
-      - El nombre de secret a crear para utilizarlo con el Cluster Aurora-MySQL //
-      - Debe contener como minimo 4 caracter y un maximo de 32 caracteres. //
-      - Solo se permiten caracteres alfanumericos y los siguientes caracteres especiales: /_+=.@-
-      - Debe de comenzar con una letra.
-  DBMasterUsername:
-    Type: String
-    Default: 'main'
-    MinLength: 4
-    MaxLength: 32
-    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
-    Description: |
-      - El nombre de usuario con privilegios de administrador de la base de datos //
-      - Debe contener como minimo 4 caracter y un maximo de 32 caracteres. //
-      - Solo se permiten caracteres alfanumericos. //
-      - Debe de comenzar con una letra.
-    ConstraintDescription: |
-      - Debe contener como minimo 1 caracter y un maximo de 32 caracteres. //
-      - Solo se permiten caracteres alfanumericos. //
-      - Debe de comenzar con una letra.
-  DBMasterUserPassword:
-    Type: String
-    Default: 'Aurora2023*'
-    Description: Contraseña de la base de datos
-  DBPreferredBackupWindow:
-    Type: String
-    Default: '05:20-05:55'
-    AllowedPattern: ^(([0-1][0-9]|2[0-3]):[0-5][0-9])\-(([0-1][0-9]|2[0-3]):[0-5][0-9])?$
-    Description: |
-      - Debe tener el formato hh24:mi-hh24:mi. //
-      - Debe estar en tiempo universal coordinado (UTC). //
-      - No debe entrar en conflicto con la ventana de mantenimiento preferida. //
-      - Debe ser de al menos 30 minutos.
-    ConstraintDescription: |-
-      - Debe tener el formato hh24:mi-hh24:mi. //
-      - Debe estar en tiempo universal coordinado (UTC). //
-      - No debe entrar en conflicto con la ventana de mantenimiento preferida. //
-      - Debe ser de al menos 30 minutos.
-  DBBackupRetentionPeriod:
-    Type: Number
-    Default: 7
-    MinValue: 1
-    MaxValue: 35
-    Description: |
-      - El numero de dias durante los cuales se retienen los snapshots de base de datos de forma automatica.
-      - El numero de dias minimo es 1 y un maximo de 35.
-  DBPreferredMaintenanceWindow:
-    Type: String
-    Default: 'Sat:07:00-Sat:07:30'
-    AllowedPattern: ^((Mon|Tue|Wed|Thu|Fri|Sat|Sun):([0-1][0-9]|2[0-3]):([0-5][0-9]))\-((Mon|Tue|Wed|Thu|Fri|Sat|Sun):([0-1][0-9]|2[0-3]):([0-5][0-9]))$
-    Description: |
-      - Ingrese el periodo en el que desea modificaciones pendientes (como cambiar la clase de instancia de base de datos)
-      o parches aplicados a la instancia de base de datos por parte de Amazon RDS. //
-      - Cualquier mantenimiento de este tipo debe iniciarse y completarse dentro del periodo seleccionado. //
-      - El periodo o ventana debe de ser de 30 minutos como minimo. //
-      - Si no ingresa un periodo, Amazon RDS asignara una ventana de 30 minutos seleccionada al azar de un bloque de tiempo
-        de 8 horas para cada region de AWS, que ocurre en un dia aleatorio de la semana. //
-      - El formato es: ddd:hh24:mi-ddd:hh24:mi
-    ConstraintDescription: La ventana debe de ser 30 minutos como minimo.
-  DBAutoMinorVersionUpgrade:
-    Type: String
-    AllowedValues: ['true', 'false']
-    Default: 'true'
-    Description: Seleccione true/false para configurar el Auto Minor Version upgrade
-  DBDeletionProtection:
-    Type: String
-    AllowedValues: ['true', 'false']
-    Default: 'true'
-    Description: |
-      - Seleccione true/false para configurar el Delete Protection para Aurora-MySQL Cluster. //
-      - La base de datos no se puede eliminar cuando Delete Protection esta habilitada.
   KeyPair:
     Description: Name of an existing EC2 KeyPair to enable SSH access to the container
       instances
@@ -212,9 +9,9 @@ Parameters:
   LoadBalancerSubnets:
     Description: Subnet(s) for the load balancer
     Type: List<AWS::EC2::Subnet::Id>
-  EC2SubnetId:
+  SubnetId:
     Type: 'AWS::EC2::Subnet::Id'
-    Description: Ingrese la subnetID para el EC2 Wordpress.
+    Description: Subnet(s) for the ec2 instances
     ConstraintDescription: must be a valid EC2 instance type.
   InstanceType:
     Type: String
@@ -229,152 +26,38 @@ Parameters:
   AmiID:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
     Description: Query for the latest Amazon Linux AMI IDs using AWS Systems Manager Parameter Store
-    Default: '/aws/service/canonical/ubuntu/server/jammy/stable/current/amd64/hvm/ebs-gp2/ami-id'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
   VpcId:
     Description: VPC ID for resources
     Type: AWS::EC2::VPC::Id
   Owner:
     Description: Used to tag resources
     Type: String
+  DBName: 
+    Type: String
+    Description: Nombre de la base de datos
+    Default: wordpress
+  DBUsername: 
+    Type: String
+    Description: username de la base de datos
+    Default: admin
+  DBPassword: 
+    Type: String
+    Description: password de la base de datos
+    Default: wordpress123
   DNSNombre:
-    Description: Ingresa el nombre del dns que quieras ejemplo mydomain.xyz 
+    Description: Ingresa el nombre del dns que quieras 
     Type: String
+    Default: YourSubDomainHere
   ACMARN:
-    Description: ingresa el ACM de tu dominio.
+    Description: Enter the ACMARN (Amazon Certificate Manager ARN)
     Type: String
+    Default: arn:aws:acm:us-east-1:12345678910:certificate/
   HostedZoneId:
     Description: Select your domain.
     Type: AWS::Route53::HostedZone::Id
-# Mappings
-Mappings:
-  DBEngineMap:
-    '5.7.mysql-aurora.2.10.2':
-      Engine: 'aurora-mysql'
-      EngineVersion: '5.7.mysql_aurora.2.10.2'
-      Port: 3306
-      ClusterParameterGroupFamily: 'aurora-mysql5.7'
-      ParameterGroupFamily: 'aurora-mysql5.7'
-    '8.0.mysql-aurora.3.02.0':
-      Engine: 'aurora-mysql'
-      EngineVersion: '8.0.mysql_aurora.3.02.0'
-      Port: 3306
-      ClusterParameterGroupFamily: 'aurora-mysql8.0'
-      ParameterGroupFamily: 'aurora-mysql8.0'
-# Conditions
-Conditions:
-  HasDBSecretName: !Not [!Equals [!Ref DBSecretName, '']]
-  HasDBAutoMinorVersionUpgrade: !Equals [!Ref DBAutoMinorVersionUpgrade, 'true']
-  HasDBDeletionProtection: !Equals [!Ref DBDeletionProtection, 'true']
-# Resources
+
 Resources:
-  # Sercrets Manager
-  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-secretsmanager-secret.html
-  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-secretsmanager-secret-generatesecretstring.html
-  DBSecret:
-    DeletionPolicy: Delete
-    UpdateReplacePolicy: Delete
-    Type: AWS::SecretsManager::Secret
-    Properties:
-      Name: !If [HasDBSecretName, !Ref DBSecretName, !Ref 'AWS::StackName']
-      Description: !Sub "Secret asignado al Aurora-Mysql Cluster del stack ${AWS::StackName}"
-      #KmsKeyId: "alias/aws/secretsmanager"
-      SecretString: !Sub '{"username": "${DBMasterUsername}","password":"${DBMasterUserPassword}"}'
-  SecretRDSInstanceAttachment:
-    Type: AWS::SecretsManager::SecretTargetAttachment
-    Properties:
-      SecretId: !Ref DBSecret
-      TargetId: !Ref AuroraDBCluster
-      TargetType: AWS::RDS::DBCluster
-  ##### RDS AURORA-MYSQL #######
-  DBClusterSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupName: !Sub "${AWS::StackName}-sg"
-      GroupDescription: !Sub "Permite acceso al Aurora-Mysql Cluster del stack ${AWS::StackName}"
-      VpcId: !Ref VpcIdParameter
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: !FindInMap [DBEngineMap, !Ref DBEngineVersion, Port]
-          ToPort: !FindInMap [DBEngineMap, !Ref DBEngineVersion, Port]
-          CidrIp: !Ref DBPermitLocation
-          Description: Acceso permitido para CIDR AWS
-      Tags:
-        - Key: Name
-          Value: !Sub "$Aurora-sg"
-  DBClusterSubnetGroup:
-    Type: AWS::RDS::DBSubnetGroup
-    Properties:
-      DBSubnetGroupName: !Sub "${AWS::StackName}-subnetgroup"
-      DBSubnetGroupDescription: !Sub "Subnets para uso con Aurora-MySQL Cluster del stack ${AWS::StackName}"
-      SubnetIds: !Ref 'DBSubnets'
-  DBClusterParameterGroup:
-    Type: 'AWS::RDS::DBClusterParameterGroup'
-    Properties:
-      Description: !Sub "Parameter Group del Aurora-MySQL Cluster del stack ${AWS::StackName}"
-      Family: !FindInMap [DBEngineMap, !Ref DBEngineVersion, ClusterParameterGroupFamily]
-      Parameters:
-        character_set_client: utf8
-        character_set_connection: utf8
-        character_set_database: utf8
-        character_set_filesystem: utf8
-        character_set_results: utf8
-        character_set_server: utf8
-        collation_connection: utf8_general_ci
-        collation_server: utf8_general_ci
-  AuroraDBCluster:
-    Type: AWS::RDS::DBCluster
-    DeletionPolicy: Snapshot
-    UpdateReplacePolicy: Snapshot
-    Properties:
-      DBClusterIdentifier: !Ref DBClusterIdentifierName
-      DatabaseName: !Ref DBName
-      Engine: !FindInMap [DBEngineMap, !Ref DBEngineVersion, Engine]
-      EngineVersion: !FindInMap [DBEngineMap, !Ref DBEngineVersion, EngineVersion]
-      EngineMode: provisioned
-      BackupRetentionPeriod: !Ref DBBackupRetentionPeriod
-      DBClusterParameterGroupName: !Ref DBClusterParameterGroup
-      DBSubnetGroupName: !Ref DBClusterSubnetGroup
-      Port: !FindInMap [DBEngineMap, !Ref DBEngineVersion, Port]
-      MasterUsername: !Ref DBMasterUsername
-      MasterUserPassword : !Ref DBMasterUserPassword
-      PreferredBackupWindow: !Ref DBPreferredBackupWindow
-      PreferredMaintenanceWindow: !Ref DBPreferredMaintenanceWindow
-      DeletionProtection: !If [HasDBDeletionProtection, true, false]
-      CopyTagsToSnapshot: true
-      StorageEncrypted: true
-      VpcSecurityGroupIds: [!Ref DBClusterSecurityGroup]
-  DBParameterGroup:
-    Type: AWS::RDS::DBParameterGroup
-    Properties:
-      Description: !Ref 'AWS::StackName'
-      Family: !FindInMap [DBEngineMap, !Ref DBEngineVersion, ParameterGroupFamily]
-  AuroraDBClusterInstance1:
-    Type: AWS::RDS::DBInstance
-    DeletionPolicy: Delete
-    UpdateReplacePolicy: Delete
-    Properties:
-      AllowMajorVersionUpgrade: false
-      AutoMinorVersionUpgrade: !If [HasDBAutoMinorVersionUpgrade, true, false]
-      DBClusterIdentifier: !Ref AuroraDBCluster
-      DBInstanceClass: !Ref DBInstanceClass
-      DBSubnetGroupName: !Ref DBClusterSubnetGroup
-      PubliclyAccessible: false
-      DBParameterGroupName: !Ref DBParameterGroup
-      Engine: !FindInMap [DBEngineMap, !Ref DBEngineVersion, Engine]
-  AuroraDBClusterInstance2:
-    Type: AWS::RDS::DBInstance
-    DeletionPolicy: Delete
-    UpdateReplacePolicy: Delete
-    Properties:
-      AllowMajorVersionUpgrade: false
-      AutoMinorVersionUpgrade: !If [HasDBAutoMinorVersionUpgrade, true, false]
-      DBClusterIdentifier: !Ref AuroraDBCluster
-      DBInstanceClass: !Ref DBInstanceClass
-      DBSubnetGroupName: !Ref DBClusterSubnetGroup
-      PubliclyAccessible: false
-      DBParameterGroupName: !Ref DBParameterGroup
-      Engine: !FindInMap [DBEngineMap, !Ref DBEngineVersion, Engine]
-###### EC2 ########
   SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -385,7 +68,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: 10.0.0.0/8
+          CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
@@ -393,6 +76,12 @@ Resources:
         - IpProtocol: tcp
           FromPort: 443
           ToPort: 443
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub '${Owner}-SecurityGroup'
+        - Key: Owner
+          Value: !Sub '${Owner}'
   Ec2SsmIamRole:
     Type: AWS::IAM::Role
     Properties: 
@@ -407,7 +96,6 @@ Resources:
         - arn:aws:iam::aws:policy/AmazonSSMFullAccess
         - arn:aws:iam::aws:policy/CloudWatchFullAccess
         - arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess
-        - arn:aws:iam::aws:policy/AmazonElasticFileSystemFullAccess
       Policies:
         - PolicyName: !Sub ${Owner}-sts-assume-role
           PolicyDocument:
@@ -418,94 +106,7 @@ Resources:
                 Action:
                   - "sts:*"
                 Resource: "*"     
-#Aplication Load Balancer
-  LoadBalancerSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Security group for the ApplicationLoadBalancer
-      VpcId:
-        Ref: VpcId
-      SecurityGroupIngress:
-      - IpProtocol: tcp
-        FromPort: 80
-        ToPort: 80
-        CidrIp: 0.0.0.0/0
-      - IpProtocol: tcp
-        FromPort: 443
-        ToPort: 443
-        CidrIp: 0.0.0.0/0
-      Tags:
-      - Key: Name
-        Value: ecs-inbound-access-to-loadbalancer
-      - Key: Owner
-        Value:
-          Ref: Owner
-  ApplicationLoadBalancer:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-    Properties:
-      SecurityGroups:
-      - Ref: LoadBalancerSecurityGroup
-      Subnets:
-        Ref: LoadBalancerSubnets
-      Tags:
-        - Key: Owner
-          Value:
-            Ref: Owner
-#LISTENER-PUERTOS-QUE-RESPONDEN
-#HTTP#
-  HttpListenerRule:
-     Type: 'AWS::ElasticLoadBalancingV2::Listener'
-     Properties:
-       DefaultActions:
-         - Type: "redirect"
-           RedirectConfig:
-             Protocol: "HTTPS"
-             Port: "443"
-             Host: "#{host}"
-             Path: "/#{path}"
-             Query: "#{query}"
-             StatusCode: "HTTP_301"
-       LoadBalancerArn: !Ref ApplicationLoadBalancer
-       Port: 80
-       Protocol: HTTP
- #HTTPS#
-  HttpsListener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref ALBTargetGroup
-      LoadBalancerArn: !Ref ApplicationLoadBalancer
-      Port: 443
-      Protocol: HTTPS
-      Certificates:
-        - CertificateArn: !Ref ACMARN
 
-  ALBTargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    DependsOn:
-    - ApplicationLoadBalancer
-    Properties:
-      Name: Nginx-TargetGroup-80'
-      HealthCheckIntervalSeconds: 6
-      HealthCheckPath: /
-      HealthCheckProtocol: HTTP
-      HealthCheckTimeoutSeconds: 5
-      HealthyThresholdCount: 2
-      TargetType: instance
-      Port: 80
-      Protocol: HTTP
-      VpcId:
-        Ref: VpcId
-      Tags:
-        - Key: Name
-          Value: !Sub Nginx-TargetGroup-80'
-      LoadBalancerArns:
-        - !Ref ApplicationLoadBalancer  
-      Targets:
-        - Id: !Ref Instance
-          Port: 80    
-####Intancia-USER-DATA####
   Ec2SsmInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties: 
@@ -520,153 +121,109 @@ Resources:
         - DeviceName: /dev/xvda
           Ebs:
             VolumeType: gp3
-            VolumeSize: '50'
+            VolumeSize: '30'
             DeleteOnTermination: 'true'
             Encrypted: 'true'
       SecurityGroupIds:
         - !Ref SecurityGroup
-      SubnetId: !Ref EC2SubnetId
+      SubnetId: !Ref SubnetId
       IamInstanceProfile: !Ref Ec2SsmInstanceProfile
       UserData: 
         Fn::Base64: 
           !Sub |
-            #!/bin/bash -xe
-            exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
-            sudo apt update && apt upgrade -y
-            sudo apt install nfs-common cifs-utils -y
-            sudo apt install apache2 mysql-client php php-cgi php-cli php-gd php-mysql awscli jq curl zip unzip net-tools  -y
-            systemctl start apache2
-            systemctl enable apache2
-            cd /var/www/html 
-            curl -O https://wordpress.org/latest.tar.gz
-            tar -zxvf latest.tar.gz
-            cd wordpress
-            cp -rp wp-config-sample.php wp-config.php
-            sed -i "s/database_name_here/${DBName}/g" wp-config.php
-            sed -i "s/username_here/${DBMasterUsername}/g" wp-config.php
-            sed -i "s/password_here/${DBMasterUserPassword}/g" wp-config.php
-            sed -i "s/localhost/${AuroraDBCluster.Endpoint.Address}/g" wp-config.php
-            echo "define('WP_HOME','https://${DNSNombre}');" >> wp-config.php
-            echo "define('WP_SITEURL','https://${DNSNombre}');" >> wp-config.php
-            cat > /var/www/html/wordpress/wp-config.php <<EOF
-            <?php
-            /**
-            * The base configuration for WordPress
-            *
-            * The wp-config.php creation script uses this file during the installation.
-            * You don't have to use the web site, you can copy this file to "wp-config.php"
-            * and fill in the values.
-            *
-            * This file contains the following configurations:
-            *
-            * * Database settings
-            * * Secret keys
-            * * Database table prefix
-            * * ABSPATH
-            *
-            * @link https://wordpress.org/support/article/editing-wp-config-php/
-            *
-            * @package WordPress
-            */
-
-            // * Database settings - You can get this info from your web host * //
-            /** The name of the database for WordPress */
-            define( 'DB_NAME', '${DBName}' );
-
-            /** Database username */
-            define( 'DB_USER', '${DBMasterUsername}' );
-
-            /** Database password */
-            define( 'DB_PASSWORD', '${DBMasterUserPassword}' );
-
-            /** Database hostname */
-            define( 'DB_HOST', '${AuroraDBCluster.Endpoint.Address}' );
-
-            /** Database charset to use in creating database tables. */
-            define( 'DB_CHARSET', 'utf8' );
-
-            /** The database collate type. Don't change this if in doubt. */
-            define( 'DB_COLLATE', '' );
-
-            /**#@+
-            * Authentication unique keys and salts.
-            *
-            * Change these to different unique phrases! You can generate these using
-            * the {@link https://api.wordpress.org/secret-key/1.1/salt/ WordPress.org secret-key service}.
-            *
-            * You can change these at any point in time to invalidate all existing cookies.
-            * This will force all users to have to log in again.
-            *
-            * @since 2.6.0
-            */
-            define( 'AUTH_KEY',         'put your unique phrase here' );
-            define( 'SECURE_AUTH_KEY',  'put your unique phrase here' );
-            define( 'LOGGED_IN_KEY',    'put your unique phrase here' );
-            define( 'NONCE_KEY',        'put your unique phrase here' );
-            define( 'AUTH_SALT',        'put your unique phrase here' );
-            define( 'SECURE_AUTH_SALT', 'put your unique phrase here' );
-            define( 'LOGGED_IN_SALT',   'put your unique phrase here' );
-            define( 'NONCE_SALT',       'put your unique phrase here' );
-
-            /*#@-/
-
-            /**
-            * WordPress database table prefix.
-            *
-            * You can have multiple installations in one database if you give each
-            * a unique prefix. Only numbers, letters, and underscores please!
-            */
-            \$table_prefix = 'wp_';
-            
-            /**
-            * For developers: WordPress debugging mode.
-            *
-            * Change this to true to enable the display of notices during development.
-            * It is strongly recommended that plugin and theme developers use WP_DEBUG
-            * in their development environments.
-            *
-            * For information on other constants that can be used for debugging,
-            * visit the documentation.
-            *
-            * @link https://wordpress.org/support/article/debugging-in-wordpress/
-            */
-            define( 'WP_DEBUG', false );
-
-            /* Add any custom values between this line and the "stop editing" line. */
-
-            define('WP_HOME','https://${DNSNombre}');
-            define('WP_SITEURL','https://${DNSNombre}');
-
-
-            if (strpos(\$_SERVER['HTTP_X_FORWARDED_PROTO'], 'https') !== false)
-                  \$_SERVER['HTTPS']='on';
-
-            /* That's all, stop editing! Happy publishing. */
-
-            
-            /** Absolute path to the WordPress directory. */
-            if ( ! defined( 'ABSPATH' ) ) {
-                    define( 'ABSPATH', _DIR_ . '/' );
-            }
-
-            /** Sets up WordPress vars and included files. */
-            require_once ABSPATH . 'wp-settings.php';
-            EOF
-            cat > /etc/apache2/sites-available/wordpress.conf <<EOF
-            <VirtualHost *:80>
-              ServerAdmin online@thecloudroot.net
-              ServerName ${DNSNombre}
-              DocumentRoot /var/www/html/wordpress
-            </VirtualHost>
-            EOF
-            a2ensite wordpress.conf
-            systemctl reload apache2  
+          #!/bin/bash -xe
+          exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+          yum update -y
+          amazon-linux-extras install -y lamp-mariadb10.2-php7.2 php7.2 -y
+          yum install -y httpd mariadb-server php-mysqlnd -y
+          systemctl start httpd
+          systemctl enable httpd
+          systemctl start mariadb
+          systemctl enable mariadb
+          mysql -e "CREATE DATABASE ${DBName};"
+          mysql -e "CREATE USER '${DBUsername}'@'localhost' IDENTIFIED BY '${DBPassword}';"
+          mysql -e "GRANT ALL PRIVILEGES ON ${DBName}.* TO '${DBUsername}'@'localhost';"
+          mysql -e "FLUSH PRIVILEGES;"
+          cd /var/www/html
+          curl -O https://wordpress.org/latest.tar.gz
+          tar -zxvf latest.tar.gz
+          cp -r wordpress/* .
+          rm -rf wordpress latest.tar.gz
+          cp -rp wp-config-sample.php wp-config.php
+          sed -i "s/database_name_here/${DBName}/g" wp-config.php
+          sed -i "s/username_here/${DBUsername}/g" wp-config.php
+          sed -i "s/password_here/${DBPassword}/g" wp-config.php
+          chown -R apache:apache /var/www/html
+      
       Tags:
         - Key: Name
-          Value: !Sub '${Owner}-EC2'
+          Value: !Sub '${Owner}-EC2-'
         - Key: Owner
           Value: !Sub '${Owner}'
-#######Dominio########
+
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for the ApplicationLoadBalancer
+      VpcId:
+        Ref: VpcId
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      Tags:
+      - Key: Name
+        Value: ecs-inbound-access-to-loadbalancer
+      - Key: Owner
+        Value:
+          Ref: Owner
+          
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      SecurityGroups:
+      - Ref: LoadBalancerSecurityGroup
+      Subnets:
+        Ref: LoadBalancerSubnets
+      Tags:
+      - Key: Owner
+        Value:
+          Ref: Owner
+
+  ApplicationLoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: NullTargetGroup
+      LoadBalancerArn:
+        Ref: ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+  NullTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    DependsOn:
+    - ApplicationLoadBalancer
+    Properties:
+      HealthCheckIntervalSeconds: 6
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      TargetType: instance
+      Port: 80
+      Protocol: HTTP
+      VpcId:
+        Ref: VpcId
+      Matcher:
+        HttpCode: "302"
+      Targets:
+        - Id: !Ref Instance
+          Port: 80
+  
   MiSubdominio:
     Type: AWS::Route53::RecordSet
     Properties:
@@ -676,43 +233,10 @@ Resources:
       AliasTarget:
         DNSName: !GetAtt ApplicationLoadBalancer.DNSName
         HostedZoneId: !GetAtt ApplicationLoadBalancer.CanonicalHostedZoneID
-# Outputs
+
 Outputs:
-  ClusterName:
-    Description: 'El Nombre del Amazon Aurora-MySQL cluster.'
-    Value: !Ref AuroraDBCluster
-    Export:
-      Name: !Sub '${AWS::StackName}-aurora-mysql-cluster-name'
-  ClusterEndpoint:
-    Description: 'Aurora Cluster Writer Endpoint'
-    Value: !GetAtt 'AuroraDBCluster.Endpoint.Address'
-    Export:
-      Name: !Sub 'wordpress-aurora-mysql-cluster-dnsname'
-  ReaderEndpoint:
-    Description: 'Aurora Cluster Reader Endpoint'
-    Value: !GetAtt 'AuroraDBCluster.ReadEndpoint.Address'
-    Export:
-      Name: !Sub '${AWS::StackName}-aurora-mysql-cluster-readdnsname'
-  DBClusterPort:
-    Description: 'Aurora Endpoint Port'
-    Value: !GetAtt 'AuroraDBCluster.Endpoint.Port'
-    Export:
-      Name: !Sub '${AWS::StackName}-aurora-mysql-cluster-port'
-  DBName:
-    Description: 'Nombre de la Base de Datos'
-    Value: !Ref DBName
-  DBSecurityGroupId:
-    Description: 'El security group utilizado para administrar el acceso a RDS Aurora.'
-    Value: !Ref DBClusterSecurityGroup
-    Export:
-      Name: !Sub '${AWS::StackName}-aurora-mysql-cluster-securitygroupid'
-  DBSecretsManagerSecret:
-    Description: 'Secret ARN de la base de datos'
-    Value: !Ref DBSecret
-    Export:
-      Name: !Sub '${AWS::StackName}-aurora-mysql-cluster-secret-arn'
   InstanceId:
-    Description: InstanceId
+    Description:  InstanceId
     Value: !Ref 'Instance'
     Export:
       Name: !Sub '${Owner}-InstanceId'
