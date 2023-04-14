@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Deploys an EC2 with 
+Description: Template to launch wordpress on ec2
 Parameters:
   KeyPair:
     Description: Name of an existing EC2 KeyPair to enable SSH access to the container
@@ -15,18 +15,10 @@ Parameters:
     ConstraintDescription: must be a valid EC2 instance type.
   InstanceType:
     Type: String
-    Default: t3a.small
-    AllowedValues:
-      - t3a.xlarge
-      - t3a.medium
-      - t3a.2xlarge
-      - t3a.large
-      - t3a.small
-    Description: Please enter the instance type example t3a.medium,t3a.large,t3a.xlarge,t3a.2xlarge
+    Description : to use ARM64 = m7g.medium | to use amdx86_64 = t3a.medium
   AmiID:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
-    Description: Query for the latest Amazon Linux AMI IDs using AWS Systems Manager Parameter Store
-    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+    Description: To use ARM64 = /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-arm64-gp2 | To use amdx86_64 = /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2 
   VpcId:
     Description: VPC ID for resources
     Type: AWS::EC2::VPC::Id
